@@ -1,0 +1,37 @@
+{
+  "name": "jwt-reuse-exfil",
+  "steps": [
+    {
+      "id": "login_userA",
+      "status_code": null,
+      "request": {
+        "url": "http://127.0.0.1:9000/login",
+        "method": "POST",
+        "body": {
+          "username": "userA",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": null,
+      "ok": false,
+      "error": "request failed: HTTPConnectionPool(host='127.0.0.1', port=9000): Max retries exceeded with url: /login (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000126B9A8A900>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    },
+    {
+      "id": "get_userB_profile",
+      "status_code": null,
+      "request": {
+        "url": "http://127.0.0.1:9000/users/2/profile",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer {{ token }}"
+        }
+      },
+      "response": null,
+      "ok": false,
+      "error": "request failed: HTTPConnectionPool(host='127.0.0.1', port=9000): Max retries exceeded with url: /users/2/profile (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000126B9B18CD0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
+    }
+  ],
+  "context": {}
+}

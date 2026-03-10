@@ -1,0 +1,63 @@
+name: idor-read-check
+description: Test for IDOR vulnerabilities
+steps:
+  - id: login_userA
+    method: POST
+    path: /login
+    body:
+      username: "userA"
+      password: "Password123"
+    capture:
+      tokenA: "$.token"
+      user_id_A: "$.user_id"
+    expect_status: 200
+
+  - id: login_userB
+    method: POST
+    path: /login
+    body:
+      username: "userB"
+      password: "Password123"
+    capture:
+      tokenB: "$.token"
+      user_id_B: "$.user_id"
+    expect_status: 200
+
+  - id: userB_access_userA_profile
+    method: GET
+    path: /users/{{ user_id_A }}/profile
+    headers:
+      Authorization: "Bearer {{ tokenB }}"
+    capture:
+      stolen_data: "$"
+    expect_status: 200
+
+  - id: userB_modify_userA_profile
+    method: PUT
+    path: /users/{{ user_id_A }}/profile
+    headers:
+      Authorization: "Bearer {{ tokenB }}"
+    body:
+      email: "hacked@example.com"
+      name: "Hacked User"
+    capture:
+      modification_result: "$"
+    expect_status: 200
+
+  - id: regular_user_access_admin
+    method: GET
+    path: /admin/users
+    headers:
+      Authorization: "Bearer {{ tokenA }}"
+    capture:
+      admin_data: "$"
+    expect_status: 200
+
+  - id: user_enumeration
+    method: POST
+    path: /reset-password
+    body:
+      username: "nonexistentuser"
+    capture:
+      reset_response: "$"
+    expect_status: 200

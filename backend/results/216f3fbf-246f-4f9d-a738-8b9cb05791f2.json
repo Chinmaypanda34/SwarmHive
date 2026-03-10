@@ -1,0 +1,147 @@
+{
+  "name": "idor-read-check",
+  "steps": [
+    {
+      "id": "login_userA",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "userA",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "tokenA",
+        "user_id": 1
+      },
+      "ok": true
+    },
+    {
+      "id": "login_userB",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "userB",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "tokenB",
+        "user_id": 2
+      },
+      "ok": true
+    },
+    {
+      "id": "userB_access_userA_profile",
+      "status_code": 401,
+      "request": {
+        "url": "http://127.0.0.1:9001/users/1/profile",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer tokenB"
+        }
+      },
+      "response": {
+        "detail": "Authorization required"
+      },
+      "ok": false
+    },
+    {
+      "id": "userB_modify_userA_profile",
+      "status_code": 401,
+      "request": {
+        "url": "http://127.0.0.1:9001/users/1/profile",
+        "method": "PUT",
+        "body": {
+          "email": "hacked@example.com",
+          "name": "Hacked User"
+        },
+        "headers": {
+          "Authorization": "Bearer tokenB"
+        }
+      },
+      "response": {
+        "detail": "Authorization required"
+      },
+      "ok": false
+    },
+    {
+      "id": "regular_user_access_admin",
+      "status_code": 401,
+      "request": {
+        "url": "http://127.0.0.1:9001/admin/users",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer tokenA"
+        }
+      },
+      "response": {
+        "detail": "Authorization required"
+      },
+      "ok": false
+    },
+    {
+      "id": "user_enumeration",
+      "status_code": 422,
+      "request": {
+        "url": "http://127.0.0.1:9001/reset-password",
+        "method": "POST",
+        "body": {
+          "username": "nonexistentuser"
+        },
+        "headers": {}
+      },
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "username"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "ok": false
+    }
+  ],
+  "context": {
+    "tokenA": "tokenA",
+    "user_id_A": 1,
+    "tokenB": "tokenB",
+    "user_id_B": 2,
+    "stolen_data": {
+      "detail": "Authorization required"
+    },
+    "modification_result": {
+      "detail": "Authorization required"
+    },
+    "admin_data": {
+      "detail": "Authorization required"
+    },
+    "reset_response": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "query",
+            "username"
+          ],
+          "msg": "Field required",
+          "input": null
+        }
+      ]
+    }
+  },
+  "findings": []
+}

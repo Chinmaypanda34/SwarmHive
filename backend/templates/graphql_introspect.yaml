@@ -1,0 +1,9 @@
+name: graphql-introspect
+description: Run schema introspection (use only on test targets)
+steps:
+  - id: introspect
+    method: POST
+    path: /graphql
+    body:
+      query: "{ __schema { types { name } } }"
+    expect_status: 200

@@ -1,0 +1,401 @@
+import React, { useState, useEffect } from 'react';
+
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+function App() {
+  const [targetUrl, setTargetUrl] = useState('');
+  const [specId, setSpecId] = useState('');
+  const [specs, setSpecs] = useState([]);
+  const [templates, setTemplates] = useState({});
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templateContent, setTemplateContent] = useState('');
+  const [dryRunResult, setDryRunResult] = useState(null);
+  const [runResult, setRunResult] = useState(null);
+  const [consent, setConsent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchSpecs();
+    fetchTemplates();
+  }, []);
+
+  const fetchSpecs = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/specs`);
+      const data = await response.json();
+      setSpecs(data);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to fetch specs.');
+      setLoading(false);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/templates`);
+      const data = await response.json();
+      setTemplates(data);
+      setSelectedTemplate(Object.keys(data)[0] || '');
+      setTemplateContent(Object.values(data)[0] || '');
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
+      // Fallback for when backend doesn't have a templates endpoint
+      setTemplates({
+        'jwt-reuse.yaml': `name: jwt-reuse-exfil
+description: Login as userA and try to access userB profile
+steps:
+  - id: login_userA
+    method: POST
+    path: /login
+    body:
+      username: "userA"
+      password: "Password123"
+    capture:
+      token: "$.token"
+    expect_status: 200
+  - id: get_userB_profile
+    method: GET
+    path: /users/2/profile
+    headers:
+      Authorization: "Bearer {{ token }}"
+    expect_status: 200`,
+        'idor_read.yaml': `name: idor-read-check
+description: Try to read another user's profile by changing the user id.
+steps:
+  - id: login_userA
+    method: POST
+    path: /login
+    body:
+      username: "userA"
+      password: "Password123"
+    capture:
+      tokenA: "$.token"
+    expect_status: 200
+  - id: login_userB
+    method: POST
+    path: /login
+    body:
+      username: "userB"
+      password: "Password123"
+    capture:
+      tokenB: "$.token"
+    expect_status: 200
+  - id: read_as_A
+    method: GET
+    path: /users/1/profile
+    headers:
+      Authorization: "Bearer {{ tokenA }}"
+    expect_status: 200
+  - id: read_as_B
+    method: GET
+    path: /users/1/profile
+    headers:
+      Authorization: "Bearer {{ tokenB }}"`,
+        'bola_update.yaml': `name: bola-update-check
+description: Try to update another user's resource.
+steps:
+  - id: login_owner
+    method: POST
+    path: /login
+    body:
+      username: "owner"
+      password: "Password123"
+    capture:
+      token_owner: "$.token"
+    expect_status: 200
+  - id: create_resource
+    method: POST
+    path: /resources
+    headers:
+      Authorization: "Bearer {{ token_owner }}"
+    body:
+      name: "owner-only-resource"
+      data: "secret"
+    capture:
+      resource_id: "$.id"
+    expect_status: 200
+  - id: login_attacker
+    method: POST
+    path: /login
+    body:
+      username: "attacker"
+      password: "Password123"
+    capture:
+      token_attacker: "$.token"
+    expect_status: 200
+  - id: attacker_updates_owner_resource
+    method: PUT
+    path: /resources/{{ resource_id }}
+    headers:
+      Authorization: "Bearer {{ token_attacker }}"
+    body:
+      name: "owner-only-resource"
+      data: "changed-by-attacker"
+    expect_status: 200`
+      });
+    }
+  };
+
+  const handleUpload = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/upload_spec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl }),
+      });
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setSpecs([...specs, data]);
+      setSpecId(data.spec_id);
+      setEndpoints(data.endpoints);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const handleSelectSpec = async (id) => {
+    setSpecId(id);
+    setEndpoints([]);
+    setRunResult(null);
+    setDryRunResult(null);
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/specs/${id}/endpoints`);
+      const data = await response.json();
+      setEndpoints(data);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to fetch endpoints.');
+      setLoading(false);
+    }
+  };
+
+  const handleTemplateChange = (e) => {
+    setSelectedTemplate(e.target.value);
+    setTemplateContent(templates[e.target.value]);
+    setDryRunResult(null);
+    setRunResult(null);
+  };
+
+  const handleDryRun = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/dry_run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template: templateContent, target_base: `http://127.0.0.1:9001` }),
+      });
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setDryRunResult(data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const handleRunTest = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const isDestructive = selectedTemplate.includes('bola') || selectedTemplate.includes('jwt') || selectedTemplate.includes('graphql');
+      if (isDestructive && !consent) {
+        setError('Consent is required to run destructive tests.');
+        setLoading(false);
+        return;
+      }
+      const response = await fetch(`${API_BASE_URL}/run_template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spec_id: specId,
+          template: templateContent,
+          target_base: `http://127.0.0.1:9001`,
+          consent: isDestructive
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Error: ${response.statusText} - ${errorData.detail}`);
+      }
+      const data = await response.json();
+      // Poll for results
+      const runId = data.run_id;
+      let resultData = null;
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (!resultData && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const resultResponse = await fetch(`${API_BASE_URL}/results/${runId}`);
+        if (resultResponse.ok) {
+          resultData = await resultResponse.json();
+        }
+        attempts++;
+      }
+      setRunResult(resultData);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const isDestructive = selectedTemplate.includes('bola') || selectedTemplate.includes('jwt') || selectedTemplate.includes('graphql');
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100 p-8 flex flex-col items-center">
+      <div className="w-full max-w-4xl">
+        <header className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-indigo-400">SwarmHive</h1>
+          <p className="text-gray-400 mt-2">API Security Scanner</p>
+        </header>
+
+        <section className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+          <h2 className="text-2xl font-semibold mb-4 text-indigo-300">1. Upload API Spec</h2>
+          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 items-center">
+            <input
+              type="text"
+              placeholder="Enter OpenAPI/Swagger URL (e.g., http://127.0.0.1:9001/openapi.json)"
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
+              className="flex-1 p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            />
+            <button
+              onClick={handleUpload}
+              className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-md transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {loading && targetUrl ? 'Uploading...' : 'Upload Spec'}
+            </button>
+          </div>
+        </section>
+
+        <section className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+          <h2 className="text-2xl font-semibold mb-4 text-indigo-300">2. Select a Spec & Template</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <label className="block text-gray-400">Available Specs:</label>
+              <select
+                value={specId}
+                onChange={(e) => handleSelectSpec(e.target.value)}
+                className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">-- Select a Spec --</option>
+                {specs.map((spec) => (
+                  <option key={spec.spec_id} value={spec.spec_id}>
+                    {spec.title || 'Untitled Spec'} ({spec.spec_id.substring(0, 8)})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-gray-400">Available Templates:</label>
+              <select
+                value={selectedTemplate}
+                onChange={handleTemplateChange}
+                className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                {Object.keys(templates).map((key) => (
+                  <option key={key} value={key}>{key}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+          <h2 className="text-2xl font-semibold mb-4 text-indigo-300">3. Run Test</h2>
+          <div className="flex flex-col space-y-4">
+            <textarea
+              className="w-full h-64 p-4 bg-gray-700 rounded-md border border-gray-600 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              value={templateContent}
+              onChange={(e) => setTemplateContent(e.target.value)}
+              placeholder="Template content will be loaded here..."
+            />
+            {selectedTemplate && (
+              <div className="flex items-center space-x-2 text-gray-400">
+                <input
+                  type="checkbox"
+                  id="consent"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="form-checkbox h-4 w-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500"
+                />
+                <label htmlFor="consent">
+                  I have explicit permission to run this test on the target.
+                </label>
+              </div>
+            )}
+            <div className="flex space-x-4">
+              <button
+                onClick={handleDryRun}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-md transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                disabled={loading}
+              >
+                Dry Run
+              </button>
+              <button
+                onClick={handleRunTest}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-md transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={loading || !specId || !templateContent}
+              >
+                {loading ? 'Running...' : 'Run Test'}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {(loading || error || dryRunResult || runResult) && (
+          <section className="bg-gray-800 p-6 rounded-lg shadow-xl">
+            <h2 className="text-2xl font-semibold mb-4 text-indigo-300">4. Results</h2>
+            {loading && <p className="text-indigo-400">Loading...</p>}
+            {error && <p className="text-red-400 font-bold">Error: {error}</p>}
+            {dryRunResult && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-medium text-gray-300">Dry Run Preview:</h3>
+                <pre className="bg-gray-700 p-4 rounded-md overflow-x-auto text-sm">
+                  {JSON.stringify(dryRunResult, null, 2)}
+                </pre>
+              </div>
+            )}
+            {runResult && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-medium text-gray-300">Test Run Results:</h3>
+                {runResult.findings && runResult.findings.length > 0 && (
+                  <div className="bg-red-900 p-4 rounded-md border border-red-700">
+                    <h4 className="font-bold text-red-300 mb-2">Vulnerabilities Found!</h4>
+                    <ul className="list-disc list-inside space-y-1 text-red-200">
+                      {runResult.findings.map((f, index) => (
+                        <li key={index}>
+                          <span className="font-semibold">{f.type}:</span> Severity {f.severity}.
+                          Evidence: {JSON.stringify(f.evidence)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <pre className="bg-gray-700 p-4 rounded-md overflow-x-auto text-sm">
+                  {JSON.stringify(runResult, null, 2)}
+                </pre>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;

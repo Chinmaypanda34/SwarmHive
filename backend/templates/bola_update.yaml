@@ -1,0 +1,48 @@
+# bola_update.yaml (Corrected)
+name: bola-update-check
+description: Try to update another user's resource.
+steps:
+  - id: login_owner
+    method: POST
+    path: /login
+    body:
+      username: "owner"
+      password: "Password123"
+    capture:
+      token_owner: "$.token"
+    expect_status: 200
+
+  - id: create_resource
+    method: POST
+    path: /resources
+    headers:
+      Authorization: "Bearer {{ token_owner }}"
+    body:
+      name: "owner-only-resource"
+      data: "secret"
+    capture:
+      resource_id: "$.id"
+    expect_status: 200  # <--- FIX: Changed from 201 to 200
+
+  - id: login_attacker
+    method: POST
+    path: /login
+    body:
+      username: "attacker"
+      password: "Password123"
+    capture:
+      token_attacker: "$.token"
+    expect_status: 200
+
+  - id: attacker_updates_owner_resource
+    method: PUT
+    path: /resources/{{ resource_id }}
+    headers:
+      Authorization: "Bearer {{ token_attacker }}"
+    body:
+      name: "owner-only-resource"
+      data: "changed-by-attacker"
+    # Since the `ok` status is tied to `expect_status`, you should add one here.
+    # This will flag a BOLA if the request succeeds with a 200 status code.
+    expect_status: 200
+    

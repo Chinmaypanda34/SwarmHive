@@ -1,0 +1,89 @@
+{
+  "name": "idor-read-check",
+  "steps": [
+    {
+      "id": "login_userA",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "userA",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "token_A"
+      },
+      "ok": true
+    },
+    {
+      "id": "login_userB",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "userB",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "token_B"
+      },
+      "ok": true
+    },
+    {
+      "id": "read_as_A",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/users/1/profile",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer token_A"
+        }
+      },
+      "response": {
+        "id": 1,
+        "name": "Alice Example",
+        "email": "alice@example.com"
+      },
+      "ok": true
+    },
+    {
+      "id": "read_as_B",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/users/1/profile",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer token_B"
+        }
+      },
+      "response": {
+        "id": 1,
+        "name": "Alice Example",
+        "email": "alice@example.com"
+      },
+      "ok": true
+    }
+  ],
+  "context": {
+    "tokenA": "token_A",
+    "tokenB": "token_B"
+  },
+  "findings": [
+    {
+      "type": "IDOR",
+      "severity": "high",
+      "evidence": {
+        "stepA": "read_as_A",
+        "stepB": "read_as_B"
+      }
+    }
+  ]
+}

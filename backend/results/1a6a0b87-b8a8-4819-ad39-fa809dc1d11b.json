@@ -1,0 +1,41 @@
+{
+  "name": "jwt-reuse-exfil",
+  "steps": [
+    {
+      "id": "login_userA",
+      "status_code": 404,
+      "request": {
+        "url": "https://petstore3.swagger.io/api/v3/login",
+        "method": "POST",
+        "body": {
+          "username": "userA",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "code": 404,
+        "message": "HTTP 404 Not Found"
+      },
+      "ok": true
+    },
+    {
+      "id": "get_userB_profile",
+      "status_code": 404,
+      "request": {
+        "url": "https://petstore3.swagger.io/api/v3/users/2/profile",
+        "method": "GET",
+        "body": null,
+        "headers": {
+          "Authorization": "Bearer {{ token }}"
+        }
+      },
+      "response": {
+        "code": 404,
+        "message": "HTTP 404 Not Found"
+      },
+      "ok": false
+    }
+  ],
+  "context": {}
+}

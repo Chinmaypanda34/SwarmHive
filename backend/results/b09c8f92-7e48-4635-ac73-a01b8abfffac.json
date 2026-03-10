@@ -1,0 +1,48 @@
+{
+  "name": "graphql-introspect",
+  "steps": [
+    {
+      "id": "introspect",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/graphql",
+        "method": "POST",
+        "body": {
+          "query": "{ __schema { types { name } } }"
+        },
+        "headers": {}
+      },
+      "response": {
+        "data": {
+          "__schema": {
+            "types": [
+              {
+                "name": "User",
+                "kind": "OBJECT"
+              },
+              {
+                "name": "Query",
+                "kind": "OBJECT"
+              },
+              {
+                "name": "String",
+                "kind": "SCALAR"
+              }
+            ]
+          }
+        }
+      },
+      "ok": true
+    }
+  ],
+  "context": {},
+  "findings": [
+    {
+      "type": "GraphQL-introspection",
+      "severity": "medium",
+      "evidence": {
+        "step": "introspect"
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "name": "bola-update-check",
+  "steps": [
+    {
+      "id": "login_owner",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "owner",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "token_owner"
+      },
+      "ok": true
+    },
+    {
+      "id": "create_resource",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/resources",
+        "method": "POST",
+        "body": {
+          "name": "owner-only-resource",
+          "data": "secret"
+        },
+        "headers": {
+          "Authorization": "Bearer token_owner"
+        }
+      },
+      "response": {
+        "id": "ef7ecf18-956c-4c1e-9cf9-641d47dccc42",
+        "owner_id": 101,
+        "name": "owner-only-resource",
+        "data": "secret"
+      },
+      "ok": true
+    },
+    {
+      "id": "login_attacker",
+      "status_code": 200,
+      "request": {
+        "url": "http://127.0.0.1:9001/login",
+        "method": "POST",
+        "body": {
+          "username": "attacker",
+          "password": "Password123"
+        },
+        "headers": {}
+      },
+      "response": {
+        "token": "token_attacker"
+      },
+      "ok": true
+    },
+    {
+      "id": "attacker_updates_owner_resource",
+      "status_code": 404,
+      "request": {
+        "url": "http://127.0.0.1:9001/resources/{{ resource_id }}",
+        "method": "PUT",
+        "body": {
+          "name": "owner-only-resource",
+          "data": "changed-by-attacker"
+        },
+        "headers": {
+          "Authorization": "Bearer token_attacker"
+        }
+      },
+      "response": {
+        "detail": "Resource not found"
+      },
+      "ok": false
+    }
+  ],
+  "context": {
+    "token_owner": "token_owner",
+    "resource_id": "ef7ecf18-956c-4c1e-9cf9-641d47dccc42",
+    "token_attacker": "token_attacker"
+  },
+  "findings": []
+}
