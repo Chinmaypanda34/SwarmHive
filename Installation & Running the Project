@@ -1,0 +1,192 @@
+# Running SwarmHive
+
+This guide explains how to run the **SwarmHive API security testing platform locally**, including the backend engine, vulnerable test API, and frontend dashboard.
+
+SwarmHive requires **three components to run simultaneously**:
+
+* Backend API engine (FastAPI)
+* Vulnerable test API (for IDOR/BOLA testing)
+* Frontend dashboard
+
+---
+
+# 1. Start the Backend Server
+
+First navigate to the backend directory:
+
+```powershell
+cd backend
+```
+
+Activate the Python virtual environment:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\.venv\Scripts\Activate.ps1
+```
+
+Start the backend service:
+
+```powershell
+python -m uvicorn app:app --reload --host 127.0.0.1 --port 8000
+```
+
+The backend server will start at:
+
+```
+http://127.0.0.1:8000
+```
+
+This service is responsible for:
+
+* Parsing OpenAPI specifications
+* Managing authentication sessions
+* Executing attack templates
+* Collecting vulnerability evidence
+* Generating reports
+
+---
+
+# 2. Start the Vulnerable Test API
+
+Open **another terminal window**.
+
+Navigate to the backend directory again and activate the environment:
+
+```powershell
+cd backend
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+.\.venv\Scripts\Activate.ps1
+```
+
+Run the vulnerable API:
+
+```powershell
+python -m uvicorn test_api_idor:app --reload --port 9001
+```
+
+The vulnerable API will run at:
+
+```
+http://127.0.0.1:9001
+```
+
+OpenAPI specification for the vulnerable API:
+
+```
+http://127.0.0.1:9001/openapi.json
+```
+
+This API is intentionally vulnerable and is used to demonstrate detection of:
+
+* **IDOR (Insecure Direct Object Reference)**
+* **BOLA (Broken Object Level Authorization)**
+
+SwarmHive will analyze this API specification and automatically generate attack sequences.
+
+---
+
+# 3. Start the Frontend Dashboard
+
+Open a **third terminal window**.
+
+Navigate to the frontend directory:
+
+```powershell
+cd frontend
+```
+
+Run the frontend server:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+npm run dev
+```
+
+The development server will generate a URL similar to:
+
+```
+http://localhost:5173
+```
+
+Open this link in your browser to access the **SwarmHive Dashboard**.
+
+---
+
+# 4. Upload the API Specification
+
+Inside the SwarmHive dashboard:
+
+1. Locate the **API Specification Input field**
+2. Paste the vulnerable API specification URL:
+
+```
+http://127.0.0.1:9001/openapi.json
+```
+
+3. Upload or load the OpenAPI schema.
+
+SwarmHive will automatically parse the API and identify available endpoints.
+
+---
+
+# 5. Execute Security Tests
+
+After loading the API specification:
+
+1. Select an **attack template**
+2. Start the automated scan
+3. SwarmHive will simulate multi-user interactions and authorization checks.
+
+The testing engine performs actions such as:
+
+```
+Login → Create Resource → Switch User → Attempt Unauthorized Access
+```
+
+If improper authorization is detected, the system flags the endpoint as vulnerable.
+
+---
+
+# 6. View Test Results
+
+After the scan completes, the dashboard will display:
+
+* API endpoints tested
+* HTTP requests executed
+* authentication tokens used
+* response status codes
+* detected authorization vulnerabilities
+
+These results help security analysts understand how the vulnerability occurs.
+
+---
+
+# 7. Generate Vulnerability Reports
+
+SwarmHive allows users to generate a detailed vulnerability report.
+
+The report includes:
+
+* vulnerable endpoint
+* request payload
+* response evidence
+* user identity used during testing
+* severity level
+* recommended remediation steps
+
+Reports can be exported as **PDF files** for documentation or vulnerability disclosure.
+
+---
+
+# Summary of Running the System
+
+To run SwarmHive successfully, ensure the following services are active:
+
+| Component           | Port | Purpose                                |
+| ------------------- | ---- | -------------------------------------- |
+| Backend Engine      | 8000 | Core API security testing logic        |
+| Vulnerable Test API | 9001 | Target API for testing vulnerabilities |
+| Frontend Dashboard  | 5173 | User interface                         |
+
+Once all services are running, access the dashboard and begin testing APIs automatically using SwarmHive.
